@@ -17,6 +17,7 @@
 # 11/08/2017 adapted for R3.4.1 and Tidyverse
 # 14/08/2017 added assessmentmodel and assessmenttype categories
 # 04/09/2017 updated for western horse mackerel 2017
+# 06/09/2017 added automatic link to dropbox folder
 # -----------------------------------------------------------------------------------------------
 
 # ICES Stock database
@@ -30,6 +31,7 @@ library(icesSAG)  # ICES Stock Assessment Graphs
 # lsf.str("package:icesSAG")
 # lsf.str("package:icesSD")
 
+setwd("D:/Dropbox/ICES Assessment database")
 
 library(tidyverse) # combined package of dplyr, tidyr, ggplot, readr, purrr and tibble
 library(reshape2)  # reshaping data; e.g. dcast
@@ -43,6 +45,7 @@ source("D:/GIT/mptools/r/my_utils.r")
 # Set working directory to dropbox folder
 dropboxdir <- get_dropbox()
 setwd(paste(dropboxdir, "/ICES Assessment database", sep=""))
+
 
 # -----------------------------------------------------------------------------------------
 # set the year
@@ -64,14 +67,14 @@ str(stocknames)
 # get ICES stock database and create species database (by species) and stock database (by stock)
 # -----------------------------------------------------------------------------------------
 
-s <-
-  icesSD::getSD() %>%
-  lowcase %>%
-  rename(fishstock      = stockkeylabel,
-         assessmentyear = activeyear,
-         scientificname = speciesscientificname,
-         commonname     = speciescommonname) %>%
-  mutate   (fishstock   = gsub(" ", "", fishstock))
+# s <-
+#   icesSD::getSD() %>%
+#   lowcase %>%
+#   rename(fishstock      = stockkeylabel,
+#          assessmentyear = activeyear,
+#          scientificname = speciesscientificname,
+#          commonname     = speciescommonname) %>%
+#   mutate   (fishstock   = gsub(" ", "", fishstock))
 
 
 # -----------------------------------------------------------------------------------------
@@ -173,8 +176,8 @@ load(file="rdata/stocklist.RData")
 # get reference points
 # -----------------------------------------------------------------------------------------
 
-# t <-   
-#   getSAG(stock=NULL, year=0, data="refpts", combine=TRUE) 
+t <-
+  getSAG(stock=NULL, year=0, data="refpts", combine=TRUE)
 #   # write.csv(t, file="downloads/refpoints.csv", row.names=FALSE)
 #   # write.csv(data.frame(names(t)), file="downloads/refpoints_fields.csv", row.names=FALSE)
 #   # t <- read.csv(file="downloads/refpoints.csv", stringsAsFactors = FALSE)
@@ -225,7 +228,8 @@ iad <-
 # -----------------------------------------------------------------------------------------
 
 # sagdownload <-
-#   icesSAG::getSAG(stock=NULL, year=0, data="summary", combine=TRUE)
+#   icesSAG::getSAG(stock=NULL, year=0, data="summary", combine=TRUE) %>%
+#   lowcase()
 # write.csv(sagdownload, file="downloads/sagdownload.csv", row.names=FALSE)
 
 sagdownload <- 

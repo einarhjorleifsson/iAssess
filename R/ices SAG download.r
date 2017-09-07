@@ -24,14 +24,12 @@
 # library(devtools)
 # devtools::install_github("ices-tools-prod/icesSD")
 # devtools::install_github("ices-tools-prod/icesSAG")
-library(icesSD)  # ICES Stock database
-library(icesSAG)  # ICES Stock Assessment Graphs
+# library(icesSD)  # ICES Stock database
+# library(icesSAG)  # ICES Stock Assessment Graphs
 
 # which functions in a package?
 # lsf.str("package:icesSAG")
 # lsf.str("package:icesSD")
-
-setwd("D:/Dropbox/ICES Assessment database")
 
 library(tidyverse) # combined package of dplyr, tidyr, ggplot, readr, purrr and tibble
 library(reshape2)  # reshaping data; e.g. dcast
@@ -62,7 +60,6 @@ stocknames <-
   select(1,2) %>% 
   setNames(., c("fishstockold","fishstock")) 
 
-str(stocknames)
 # -----------------------------------------------------------------------------------------
 # get ICES stock database and create species database (by species) and stock database (by stock)
 # -----------------------------------------------------------------------------------------
@@ -122,15 +119,12 @@ load(file="rdata/speciesdb.RData")
 #   # lowercase and remove na text strings
 #   mutate_at(vars("assessmenttype","advicecategory","advicetype","useofdiscardsinadvice", "pabufferapplied"), funs(tolower)) %>%
 #   mutate(assessmenttype  = ifelse(assessmenttype == "na",NA, assessmenttype),
-#          pabufferapplied = ifelse(pabufferapplied == "na", NA, pabufferapplied))
+#          pabufferapplied = ifelse(pabufferapplied == "na", NA, pabufferapplied)) %>% 
+#   rename(assessmentmodel = assessmenttype)
 
 # save(stockdb, file="rdata/stockdb.RData")
 # write.csv(data.frame(names(stockdb)), file="downloads/stockdb_fields.csv", row.names=FALSE)
 load(file="rdata/stockdb.RData")
-
-stockdb <-
-  stockdb %>% 
-  rename(assessmentmodel = assessmenttype)
 
 # glimpse(stockdb)
 # Observations: 1,297, Variables: 15
@@ -176,8 +170,8 @@ load(file="rdata/stocklist.RData")
 # get reference points
 # -----------------------------------------------------------------------------------------
 
-t <-
-  getSAG(stock=NULL, year=0, data="refpts", combine=TRUE)
+# t <-
+#   getSAG(stock=NULL, year=0, data="refpts", combine=TRUE)
 #   # write.csv(t, file="downloads/refpoints.csv", row.names=FALSE)
 #   # write.csv(data.frame(names(t)), file="downloads/refpoints_fields.csv", row.names=FALSE)
 #   # t <- read.csv(file="downloads/refpoints.csv", stringsAsFactors = FALSE)

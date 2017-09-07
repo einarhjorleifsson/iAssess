@@ -12,10 +12,12 @@ library(cowplot)
 library(directlabels)  # for printing labels at end of geom lines
 library(scales)
 
-setwd("D:/Dropbox/ICES Assessment database")
-
 # Load utils code
-source("D:/XXX/PRF/r/my_utils.r")
+source("D:/GIT/mptools/r/my_utils.r")
+
+# Set working directory to dropbox folder
+dropboxdir <- get_dropbox()
+setwd(paste(dropboxdir, "/ICES Assessment database", sep=""))
 
 # load the data
 load(file="rdata/sagdb.RData")
@@ -98,8 +100,8 @@ d <-
   # filter(fishstockold %in% c("mac-nea","mac-nea-bench","mac-nea-old")) %>% 
   # filter(fishstockold %in% c("hom-west","hom-west-bench")) %>% 
   
-  filter(grepl("hom-west", fishstockold) ) %>% 
-  # filter(grepl("mac-nea", fishstockold) ) %>% 
+  # filter(grepl("hom-west", fishstockold) ) %>% 
+  filter(grepl("mac-nea", fishstockold) ) %>% 
   # filter(grepl("whb", fishstockold) ) %>% 
   # filter(grepl("noss", fishstockold) ) %>% 
   

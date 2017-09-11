@@ -131,6 +131,7 @@ iRename <-
 # filter(told, grepl("ang|ank|anf|anb", stockkeylabel)) %>% View()
 
 save(iRename, file="rdata/iRename.RData")
+load(file="rdata/iRename.RData")
 
 rm(t, tnew, told, oldnames)
 
@@ -146,7 +147,7 @@ iSpecies <-
   arrange(speciesfaocode) 
 
 save(iSpecies, file="rdata/iSpecies.RData")
-# load(file="rdata/iSpecies.RData")
+load(file="rdata/iSpecies.RData")
 
 # -----------------------------------------------------------------------------------------
 # read ICES advice database and split up in different parts (iAdvice, iForecast, iManage, ...)
@@ -201,13 +202,22 @@ iStock_part1 <-
 iForecast <-
   t %>% 
   filter(!is.na(assessmentyear)) %>% 
-  left_join(iRename, by="stockkeylabel") %>% 
   filter(!is.na(stockkey)) %>% 
   select(stockkey, stockkeylabel, managementyear, fsqpreviousyear=fsqymin1, ssbpreviousyear = ssbymin1, fadvmax) %>% 
   data.frame()
 
 rm(t)
-         
+
+save(iAdvice, file="rdata/iAdvice.RData")
+save(iForecast, file="rdata/iForecast.RData")
+save(iManage, file="rdata/iManage.RData")
+save(iStock_part1, file="rdata/iStock_part1.RData")
+
+load(file="rdata/iAdvice.RData")
+load(file="rdata/iForecast.RData")
+load(file="rdata/iManage.RData")
+load(file="rdata/iStock_part1.RData")
+
 # -------------------------------------------------------------------------------------------------
 # Generate iStock (by stock, assessment year and date) - information on stock assessment properties
 # -------------------------------------------------------------------------------------------------
@@ -293,7 +303,7 @@ iStock <-
 #   write.csv(., file="downloads/assessmodel.csv")
 
 save(iStock, file="rdata/iStock.RData")
-# load(file="rdata/stockdb.RData")
+load(file="rdata/iStock.RData")
 
 rm(u,t, iStock_part1)
 
@@ -322,18 +332,18 @@ load(file="rdata/refpoints.RData")
 
 
 # -----------------------------------------------------------------------------------------
-# Download standard graph data and combine with previous datasets
+# Download standard graph data and prepare for combining: iAssess_part1
 # -----------------------------------------------------------------------------------------
 
-# sagdownload <-
+# t <-
 #   icesSAG::getSAG(stock=NULL, year=0, data="summary", combine=TRUE) %>%
 #   lowcase()
-# write.csv(sagdownload, file="downloads/sagdownload.csv", row.names=FALSE)
+# write.csv(t, file="downloads/sagdownload.csv", row.names=FALSE)
 
-sagdownload <- 
+iAssess_part1 <- 
   read.csv(file="downloads/sagdownload.csv", stringsAsFactors =FALSE) %>% 
   lowcase %>% 
-  dplyr:: select(fishstock, assessmentyear, year,
+  dplyr:: select(stockkeylabel=fishstock, assessmentyear, year,
                  recruitment, highrecruitment, lowrecruitment,
                  ssb, highssb, lowssb,
                  f, highf, lowf, 
@@ -344,143 +354,90 @@ sagdownload <-
                  fishingpressuredescription, fishingpressureunits,
                  stockpublishnote) %>% 
   
-  # add fao code if missing
-  mutate(faocode = substr(fishstock,1,3)) %>% 
-  
   # dealing with old and new stocknames
-  left_join(stocknames, by = c("fishstock" = "fishstockold")) %>% 
-  rename(fishstocknew = fishstock.y) %>% 
-  left_join(stocknames, by = c("fishstock")) %>% 
-  mutate(fishstocknew = ifelse(is.na(fishstocknew) & !is.na(fishstockold), fishstock, fishstocknew),
-         fishstockold = ifelse(is.na(fishstockold) & !is.na(fishstocknew), fishstock, fishstockold),
-         fishstockold = ifelse(is.na(fishstockold) & is.na(fishstocknew) , fishstock, fishstockold)) %>% 
-  mutate_at(vars("stocksizedescription","stocksizeunits","fishingpressuredescription","fishingpressureunits"), funs(tolower)) %>% 
+  left_join(iRename, by = c("stockkeylabel")) %>% 
   
+  # mutate tolower
+  mutate_at(vars("stocksizedescription","stocksizeunits","fishingpressuredescription","fishingpressureunits"), 
+            funs(tolower)) %>% 
   
-  # join relevant datasets
-  left_join(refpoints, by=c("fishstock","assessmentyear")) %>% 
-  left_join(stocklist, by=c("fishstock","assessmentyear")) %>% 
-  left_join(stockdb  , by=c("fishstock","assessmentyear")) %>% 
-  left_join(speciesdb, by=c("faocode")) %>% 
-  left_join(iad,       by=c("fishstock","assessmentyear")) %>% 
-  
-  mutate(source   = "download", 
-         flim     = ifelse(!is.na(flim.x), flim.x, flim.y),
-         fpa      = ifelse(!is.na(fpa.x),  fpa.x, fpa.y),
-         fmsy     = ifelse(!is.na(fmsy.x), fmsy.x, fmsy.y),
-         blim     = ifelse(is.na(blim.x),  blim.x, blim.y),
-         bpa      = ifelse(is.na(bpa.x),   bpa.x, bpa.y),
-         msybtrig = ifelse(is.na(msybtrigger),  msybtrigger, msybtrig),
-         assessmentmodel = ifelse(!is.na(assessmentmodel.y), assessmentmodel.y, assessmentmodel.x) ) %>% 
-  
-  select(-flim.x, -flim.y, -fpa.x, -fpa.y, -fmsy.x, -fmsy.y, -blim.x, -blim.y, -bpa.x, -bpa.y, -msybtrigger, 
-         -assessmentmodel.x, -assessmentmodel.y) %>% 
-  
+  mutate(source = "sag",
+         ibc    = NA )%>% 
+  ungroup() %>% 
   data.frame() 
 
-# Extract list of fishstock and assessment years from SAG database
-sagdownload_unique <-
-  sagdownload %>% 
-  group_by(fishstock, assessmentyear) %>% 
+# Extract list of fishstock and assessment years from SAG databas
+iAssess_part1_unique <-
+  iAssess_part1 %>% 
+  group_by(stockkeylabel, assessmentyear) %>% 
   filter(row_number()==1) %>% 
-  select(fishstock, assessmentyear)
+  select(stockkeylabel, assessmentyear)
+
+# need to add the assessment date to the database !!!!!
 
 # -----------------------------------------------------------------------------------------
-# read old excel SAG database
+# read old excel assessment database and prepare for combining: iAssess_part2
 # -----------------------------------------------------------------------------------------
 
-sagexcel <-
+iAssess_part2 <-
   readxl::read_excel("ICES Assessment Summary database.xlsx",
-             sheet = "DATA",
-             col_names = TRUE,
-             col_types = "text",
-             skip = 0) %>%
+             sheet = "DATA", col_names = TRUE, col_types = "text", skip = 0) %>%
   lowcase %>%
-  rename(assessmentyear = assyear) %>% 
-  mutate(fishstock = tolower(fishstock)) %>%
+  rename(assessmentyear = assyear, stockkeylabel = fishstock) %>% 
+  mutate(stockkeylabel = tolower(stockkeylabel)) %>%
   mutate_at(vars("year","assessmentyear"), funs(as.integer)) %>% 
   mutate_at(vars("lowrecruitment", "recruitment","highrecruitment",
                  "lowssb","ssb","highssb",
                  "lowf", "f","highf",
-                 "landings","catches","discards","ibc",
-                 "flim","fpa","fmsy", "fmanagement",
-                 "blim","bpa","msybtrigger","bmanagement",
-                 "recruitmentage","recruitmentlength"), funs(as.numeric)) %>% 
-  select(-contains("custom")) %>% 
-  rename(scientificname = speciesname,
-         commonname     = sgname,
-         fmgt           = fmanagement,
-         bmgt           = bmanagement,
-         faocode        = species) %>% 
+                 "landings","catches","discards","ibc"), 
+            funs(as.numeric)) %>%
+  mutate_at(vars("stocksizedescription","stocksizeunits","fishingpressuredescription",
+                 "fishingpressureunits"), 
+            funs(tolower)) %>% 
+  
+  ungroup() %>% 
+  
+  # select only the relevant fields (could be more though !!)
+  select(stockkeylabel, assessmentyear, year, 
+         lowrecruitment, recruitment, highrecruitment, 
+         lowssb, ssb, highssb, 
+         lowf, f, highf, 
+         landings, catches, discards, ibc, 
+         stocksizeunits, stocksizedescription, fishingpressuredescription, fishingpressureunits,
+         fage, stockpublishnote = published) %>% 
   
   # dealing with old and new stocknames
-  left_join(stocknames, by = c("fishstock" = "fishstockold")) %>% 
-  rename(fishstocknew = fishstock.y) %>% 
-  left_join(stocknames, by = c("fishstock")) %>% 
-  mutate(fishstocknew = ifelse(is.na(fishstocknew) & !is.na(fishstockold), fishstock, fishstocknew),
-         fishstockold = ifelse(is.na(fishstockold) & !is.na(fishstocknew), fishstock, fishstockold),
-         fishstockold = ifelse(is.na(fishstockold) & is.na(fishstocknew) , fishstock, fishstockold)) %>% 
-  
-  
-  mutate_at(vars("stocksizedescription","stocksizeunits","fishingpressuredescription","fishingpressureunits",
-                 "commonname", "scientificname"), funs(tolower)) %>% 
-  select(-assessmentkey, -icesareas, -report, -(unitofrecruitment:tbiomassunit), 
-         -catcheslandingsunits, -officiallandings, -(ibc:yieldssb), -(flandings:funallocated), 
-         -(flength:area), -scientificname, -commonname) %>% 
+  left_join(iRename, by = c("stockkeylabel")) %>% 
   filter(year <= assessmentyear) %>% 
   
-  # add fao code if missing
-  mutate(faocode = substr(fishstock,1,3)) %>% 
-  
-  # add species information
-  left_join(speciesdb, by=c("faocode")) %>% 
-  
-  # add ICES Advice Database information
-  select(-blim, -bpa, -msybtrigger,-flim, -fpa, -fmsy) %>% 
-  left_join(iad, by=c("fishstock","assessmentyear")) %>% 
-  
-  mutate(source = "excel") 
-  
+  mutate(source = "excel",
+         units = "")
+
 
 # Extract list of fishstock and assessment years from old database
-sagexcel_unique <-
-  sagexcel %>% 
-  group_by(fishstock, assessmentyear) %>% 
+iAssess_part2_unique <-
+  iAssess_part2 %>% 
+  group_by(stockkeylabel, assessmentyear) %>% 
   filter(row_number()==1) %>% 
-  select(fishstock, assessmentyear)
-
-# sagexcel_overview <-
-#   sagexcel %>% 
-#   group_by(fishstock, assessmentyear) %>% 
-#   summarise(nssb = sum(!is.na(ssb)),
-#          nf   = sum(!is.na(f)),
-#          nrec = sum(!is.na(recruitment)),
-#          nlan = sum(!is.na(landings))) %>% 
-#   select(fishstock, assessmentyear, nlan, nrec, nssb, nf)
-# 
-# write.csv(sagexcel_overview, file="excel_overview.csv")
+  select(stockkeylabel, assessmentyear)
 
 
+# Select from iAssess_part2 the assessments to be added to iAssess_part1
 
-# -----------------------------------------------------------------------------------------
-# Construct the excel sag dataset to add to the downloaded SAG dataset, 
-# i.e. unique combinations of fishstock and assessmentyear
-# -----------------------------------------------------------------------------------------
-
-sagexcel_toadd <-
-  setdiff(sagexcel_unique,sagdownload_unique) %>% 
-  left_join(sagexcel, by=c("fishstock","assessmentyear")) %>% 
+iAssess_part2_toadd <-
+  setdiff(iAssess_part2_unique,iAssess_part1_unique) %>% 
+  left_join(iAssess_part2, by=c("stockkeylabel","assessmentyear")) %>% 
   data.frame()
 
-# setdiff(names(sagexcel),names(sagdownload)) 
-# setdiff(names(sagdownload),names(sagexcel)) 
+setdiff(names(iAssess_part1), names(iAssess_part2))
+setdiff(names(iAssess_part2), names(iAssess_part1))
 
 # -----------------------------------------------------------------------------------------
-# Add the unique data in the excel sag dataset to the downloaded sag dataset and do cleaning up
+# Generate iAssess and do cleaning up
 # -----------------------------------------------------------------------------------------
 
-sagdb <- 
-  rbind.all.columns(sagdownload, sagexcel_toadd) %>%  
+iAssess <- 
+  rbind.all.columns(iAssess_part1, iAssess_part2_toadd) %>%  
 
   # corrections to stock size descriptions
   mutate(
@@ -560,11 +517,11 @@ sagdb <-
   
   # Add assessment type2 category (assess, bench, old, alt, explore)
   # CHECK: Should I remove the labels from the fishstock variable  ??
-  mutate(
-    assessmenttype2 = ifelse(grepl("-bench$" , fishstock), "bench", "assess"),
-    assessmenttype2 = ifelse(grepl("-old$"   , fishstock), "old"  , assessmenttype2),
-    assessmenttype2 = ifelse(grepl("-alt$"   , fishstock), "alt"  , assessmenttype2)
-  ) %>% 
+  # mutate(
+  #   assessmenttype2 = ifelse(grepl("-bench$" , stockkeylabel), "bench", "assess"),
+  #   assessmenttype2 = ifelse(grepl("-old$"   , stockkeylabel), "old"  , assessmenttype2),
+  #   assessmenttype2 = ifelse(grepl("-alt$"   , stockkeylabel), "alt"  , assessmenttype2)
+  # ) %>% 
   
   # correction due to missing units
   mutate(
@@ -574,25 +531,35 @@ sagdb <-
   
   # corrections to the assignments of specific stocks and years
   mutate(
-    stocksizedescription       = ifelse(fishstock=="anb-8c9a" & assessmentyear==2013,"b/bmsy"  ,stocksizedescription),
-    stocksizeunits             = ifelse(fishstock=="anb-8c9a" & assessmentyear==2013,"relative",stocksizeunits),
-    fishingpressuredescription = ifelse(fishstock=="anb-8c9a" & assessmentyear==2013,"f/fmsy"  ,fishingpressuredescription),
-    fishingpressureunits       = ifelse(fishstock=="anb-8c9a" & assessmentyear==2013,"relative",fishingpressureunits)
+    stocksizedescription       = ifelse(stockkeylabel=="anb-8c9a" & assessmentyear==2013,"b/bmsy"  ,stocksizedescription),
+    stocksizeunits             = ifelse(stockkeylabel=="anb-8c9a" & assessmentyear==2013,"relative",stocksizeunits),
+    fishingpressuredescription = ifelse(stockkeylabel=="anb-8c9a" & assessmentyear==2013,"f/fmsy"  ,fishingpressuredescription),
+    fishingpressureunits       = ifelse(stockkeylabel=="anb-8c9a" & assessmentyear==2013,"relative",fishingpressureunits)
   ) %>% 
   
   # remove double series (e.g. mac-nea 2013 is twice in the sag download)
-  group_by(fishstock, assessmentyear, year) %>% 
+  group_by(stockkeylabel, assessmentyear, year) %>% 
   filter(row_number() == 1) %>% 
   
   # convert to lowercase
-  mutate_at(vars(assessmenttype), funs(tolower)) %>% 
-  
-  # remove empty variables
-  select(-recruitmentlength)
+  ungroup() %>% 
+  as.data.frame()
 
 
-save(sagdb, file="rdata/sagdb.RData")
-# load(file="rdata/sagdb.RData")
+save(iAssess, file="rdata/iAssess.RData")
+load(file="rdata/iAssess.RData")
 
+# --------------------------------------------------------------------------------------------
+# Check names 
+# --------------------------------------------------------------------------------------------
+
+setdiff(names(iForecast), names(iRename))
+setdiff(names(iAdvice), names(iRename))
+setdiff(names(iManage), names(iRename))
+setdiff(names(iAssess), names(iRename))
+
+setdiff(names(iAssess), names(iStock))
+
+intersect(names(iAssess),names(iStock))
 
 

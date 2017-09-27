@@ -42,7 +42,8 @@ sagdb %>%
                split.tables=400, 
                justify = "right",
                missing=".",
-               round=c(0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0))
+               round=c(0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0),
+               caption="number of assessments per species")
 
 
 

@@ -32,8 +32,9 @@ d <-
   # filter(fishstockold %in% c("mac-nea","mac-nea-bench","mac-nea-old")) %>% 
   # filter(fishstockold %in% c("hom-west","hom-west-bench")) %>% 
   
-  #filter(grepl("mac-nea", stockkeylabel) ) %>% 
-  filter(grepl("hom-west", stockkeylabel) ) %>% 
+  filter(grepl("mac-nea", stockkeylabel) ) %>% 
+  #filter(grepl("hom-west", stockkeylabel) ) %>% 
+  #filter(grepl("whb-comb", stockkeylabel) ) %>% 
   # filter(grepl("whb", fishstockold) ) %>% 
   # filter(grepl("noss", fishstockold) ) %>% 
   
@@ -42,7 +43,7 @@ d <-
   # filter(grepl("her.27.3a", fishstocknew)) %>% 
   ungroup() %>% 
   filter(year             >  1980, 
-         assessmentyear   >  2003,
+         assessmentyear   >  1995,
          year             <= assessmentyear) %>% 
   select(assessmentyear, year, stockkeylabel, stockkeylabelold, stockkeylabelnew, 
          recruitment:lowrecruitment, f:lowf, ssb:lowssb,

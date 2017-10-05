@@ -23,6 +23,7 @@
 # 04/09/2017 updated for western horse mackerel 2017
 # 06/09/2017 added automatic link to dropbox folder
 # 10/09/2017 split all data into new databases: iAssess, iAdvice, iManage, iForecast, iSpecies, iStock
+# 04/10/2017 updated with new ICES data on WGWIDE assessments
 # -----------------------------------------------------------------------------------------------
 
 # ICES Stock database
@@ -40,28 +41,38 @@ library(tidyverse) # combined package of dplyr, tidyr, ggplot, readr, purrr and 
 library(reshape2)  # reshaping data; e.g. dcast
 library(pander)    # for print tables
 library(readxl)    # read excel files
-library(cowplot)   # multiplots
+# library(cowplot)   # multiplots
 
 # Load utils code
-source("D:/GIT/mptools/r/my_utils.r")
+source("../mptools/r/my_utils.r")
 
 # Set working directory to dropbox folder
-dropboxdir <- get_dropbox()
-setwd(paste(dropboxdir, "/ICES Assessment database", sep=""))
-
+dropboxdir <- paste(get_dropbox(), "/ICES Assessment database", sep="")
 
 # -----------------------------------------------------------------------------------------
 # set the year
 # -----------------------------------------------------------------------------------------
 
-myyear <- 0   # use 0 for all years
+# download all the ices databases from webservices
+
+# getSD         <- icesSD::getSD()
+# getListStocks <- icesSAG::getListStocks(year=0)  
+# getSAG        <- icesSAG::getSAG(stock=NULL, year=0, data="summary", combine=TRUE)
+# 
+# save(getSD        , file=paste(dropboxdir, "/rdata/getSD.RData",sep=""))
+# save(getListStocks, file=paste(dropboxdir, "/rdata/getListStocks.RData",sep=""))
+# save(getSAG       , file=paste(dropboxdir, "/rdata/getSAG.RData",sep=""))
+
+load(file=paste(dropboxdir, "/rdata/getSD.RData",sep=""))
+load(file=paste(dropboxdir, "/rdata/getListStocks.RData",sep=""))
+load(file=paste(dropboxdir, "/rdata/getSAG.RData",sep=""))
 
 # -----------------------------------------------------------------------------------------
 # read stock names (for lookup old names and new names)
 # -----------------------------------------------------------------------------------------
 
 stocknames <-
-  read.csv("D:/Dropbox/ICES Assessment database/ICES StocksOldCodesNewCodesEGs.csv", stringsAsFactors = FALSE) %>% 
+  read.csv(paste(dropboxdir, "/ICES StocksOldCodesNewCodesEGs.csv",sep=""), stringsAsFactors = FALSE) %>% 
   select(1,2) %>% 
   setNames(., c("fishstockold","fishstock")) 
 
@@ -70,7 +81,7 @@ stocknames <-
 # -----------------------------------------------------------------------------------------
 
 t <-
-  icesSD::getSD() %>%
+  getSD %>%
   lowcase %>% 
   group_by(stockkeylabel) %>% 
   filter(row_number() == 1) %>% 
@@ -93,7 +104,7 @@ told <-
 
 # old stock description names
 oldnames <- 
-  readxl::read_excel(path="downloads/ICES old names.xlsx", col_names=TRUE, col_types="text") 
+  readxl::read_excel(path=paste(dropboxdir,"/downloads/ICES old names.xlsx",sep=""), col_names=TRUE, col_types="text") 
 
 # new assessment codes
 tnew <-
@@ -101,6 +112,16 @@ tnew <-
   filter(!is.na(previousstockkey)) %>% 
   arrange(stockkey)
 
+# create iStockkey dataset
+iStockkey <-
+  told %>% 
+  left_join(tnew, by=c("stockkeylabel" = "previousstockkeylabel")) %>% 
+  ungroup() %>% 
+  mutate(stockkey         = ifelse(!is.na(stockkey.y), stockkey.y, stockkey.x),
+         stockkeylabelold = stockkeylabel,
+         stockkeylabelnew = stockkeylabel.y) %>% 
+  select(stockkey, stockkeylabelnew, stockkeylabelold)
+  
 # create iRename dataset
 iRename <-
   told %>% 
@@ -110,7 +131,7 @@ iRename <-
   select(stockkey, stockkeylabel, stockkeydescription ) %>% 
   data.frame() %>% 
   
-  # bind with new assessment codes
+  # add the new assessment codes
   rbind(data.frame(select(tnew, stockkey, stockkeylabel, stockkeydescription))) %>% 
   
   # add historic names
@@ -124,14 +145,13 @@ iRename <-
   # add fao code
   mutate(speciesfaocode = substr(stockkeylabel,1,3)) %>% 
   
-  
   arrange(stockkeylabel, stockkey)
 
 # filter(x, grepl("ang|ank|anf|anb", stockkeylabel)) %>% View()
 # filter(told, grepl("ang|ank|anf|anb", stockkeylabel)) %>% View()
 
-save(iRename, file="rdata/iRename.RData")
-load(file="rdata/iRename.RData")
+save(iRename, file=paste(dropboxdir, "/rdata/iRename.RData",sep=""))
+# load(file="rdata/iRename.RData")
 
 rm(t, tnew, told, oldnames)
 
@@ -140,22 +160,25 @@ rm(t, tnew, told, oldnames)
 # -----------------------------------------------------------------------------------------
 
 iSpecies <-
-  readxl::read_excel(path="downloads/species_list.xlsx", col_names=TRUE, col_types="text") %>%
+  readxl::read_excel(
+    path=paste(dropboxdir, "/downloads/species_list.xlsx",sep=""), col_names=TRUE, col_types="text") %>%
   mutate_at(c("speciescommonname","trophicguild","fisheriesguild","sizeguild"), 
             funs(tolower)) %>%
   group_by(speciesfaocode, speciesscientificname, speciescommonname) %>%
   arrange(speciesfaocode) 
 
-save(iSpecies, file="rdata/iSpecies.RData")
-load(file="rdata/iSpecies.RData")
+save(iSpecies, file=paste(dropboxdir, "/rdata/iSpecies.RData",sep=""))
+# load(file=paste(dropboxdir, "/rdata/iSpecies.RData",sep=""))
 
 # -----------------------------------------------------------------------------------------
 # read ICES advice database and split up in different parts (iAdvice, iForecast, iManage, ...)
 # -----------------------------------------------------------------------------------------
 
 t <- 
-  readxl::read_excel(path="../ICES advice database/ICES scientific advice database.xlsx", col_names=TRUE, col_types="text", 
-                     trim_ws=TRUE) %>%
+  readxl::read_excel(path= paste(get_dropbox(), "/ICES advice database/ICES scientific advice database.xlsx", sep=""), 
+                     col_names = TRUE, 
+                     col_types = "text", 
+                     trim_ws   = TRUE) %>%
   lowcase %>% 
   rename(stockkeylabel = stockices, 
          managementyear = year,
@@ -208,15 +231,10 @@ iForecast <-
 
 rm(t)
 
-save(iAdvice, file="rdata/iAdvice.RData")
-save(iForecast, file="rdata/iForecast.RData")
-save(iManage, file="rdata/iManage.RData")
-save(iStock_part1, file="rdata/iStock_part1.RData")
-
-load(file="rdata/iAdvice.RData")
-load(file="rdata/iForecast.RData")
-load(file="rdata/iManage.RData")
-load(file="rdata/iStock_part1.RData")
+save(iAdvice     , file=paste(dropboxdir, "/rdata/iAdvice.RData", sep=""))
+save(iForecast   , file=paste(dropboxdir, "/rdata/iForecast.RData", sep=""))
+save(iManage     , file=paste(dropboxdir, "/rdata/iManage.RData", sep=""))
+save(iStock_part1, file=paste(dropboxdir, "/rdata/iStock_part1.RData", sep=""))
 
 # -------------------------------------------------------------------------------------------------
 # Generate iStock (by stock, assessment year and date) - information on stock assessment properties
@@ -224,7 +242,7 @@ load(file="rdata/iStock_part1.RData")
 
 # Get stock database
 t <-
-  icesSD::getSD() %>%
+  getSD %>%
   lowcase %>% 
   select(-stockkey) %>% 
   left_join(iRename, by="stockkeylabel") %>% 
@@ -236,7 +254,7 @@ t <-
 
 # Get stock list with published/not published information
 u <-
-  icesSAG::getListStocks(year=0) %>% 
+  getListStocks %>% 
   lowcase %>%
   select(stockkeylabel, assessmentyear, status)  
 
@@ -302,8 +320,7 @@ iStock <-
 #   select(stockkey, stockkeylabel, assessmentyear, assessmentmodel, assessmenttype) %>% 
 #   write.csv(., file="downloads/assessmodel.csv")
 
-save(iStock, file="rdata/iStock.RData")
-load(file="rdata/iStock.RData")
+save(iStock     , file=paste(dropboxdir, "/rdata/iStock.RData", sep=""))
 
 rm(u,t, iStock_part1)
 
@@ -328,21 +345,18 @@ rm(u,t, iStock_part1)
 #   mutate_at(vars(flim:bmgt), funs(as.numeric)) 
 
 # save(refpoints, file="rdata/refpoints.RData")
-load(file="rdata/refpoints.RData")
+# load(file="rdata/refpoints.RData")
 
 
 # -----------------------------------------------------------------------------------------
 # Download standard graph data and prepare for combining: iAssess_part1
 # -----------------------------------------------------------------------------------------
 
-# t <-
-#   icesSAG::getSAG(stock=NULL, year=0, data="summary", combine=TRUE) %>%
-#   lowcase()
-# write.csv(t, file="downloads/sagdownload.csv", row.names=FALSE)
-
 iAssess_part1 <- 
-  read.csv(file="downloads/sagdownload.csv", stringsAsFactors =FALSE) %>% 
-  lowcase %>% 
+  # read.csv(file="downloads/sagdownload.csv", stringsAsFactors =FALSE) %>% 
+  # lowcase %>% 
+  getSAG %>% 
+  lowcase() %>% 
   dplyr:: select(stockkeylabel=fishstock, assessmentyear, year,
                  recruitment, highrecruitment, lowrecruitment,
                  ssb, highssb, lowssb,
@@ -380,8 +394,11 @@ iAssess_part1_unique <-
 # -----------------------------------------------------------------------------------------
 
 iAssess_part2 <-
-  readxl::read_excel("ICES Assessment Summary database.xlsx",
-             sheet = "DATA", col_names = TRUE, col_types = "text", skip = 0) %>%
+  readxl::read_excel(paste(dropboxdir, "/ICES Assessment Summary database.xlsx",sep=""),
+             sheet = "DATA", 
+             col_names = TRUE, 
+             col_types = "text", 
+             skip = 0) %>%
   lowcase %>%
   rename(assessmentyear = assyear, stockkeylabel = fishstock) %>% 
   mutate(stockkeylabel = tolower(stockkeylabel)) %>%
@@ -429,8 +446,8 @@ iAssess_part2_toadd <-
   left_join(iAssess_part2, by=c("stockkeylabel","assessmentyear")) %>% 
   data.frame()
 
-setdiff(names(iAssess_part1), names(iAssess_part2))
-setdiff(names(iAssess_part2), names(iAssess_part1))
+# setdiff(names(iAssess_part1), names(iAssess_part2))
+# setdiff(names(iAssess_part2), names(iAssess_part1))
 
 # -----------------------------------------------------------------------------------------
 # Generate iAssess and do cleaning up
@@ -517,12 +534,12 @@ iAssess <-
   
   # Add assessment type2 category (assess, bench, old, alt, explore)
   # CHECK: Should I remove the labels from the fishstock variable  ??
-  # mutate(
-  #   assessmenttype2 = ifelse(grepl("-bench$" , stockkeylabel), "bench", "assess"),
-  #   assessmenttype2 = ifelse(grepl("-old$"   , stockkeylabel), "old"  , assessmenttype2),
-  #   assessmenttype2 = ifelse(grepl("-alt$"   , stockkeylabel), "alt"  , assessmenttype2)
-  # ) %>% 
-  
+  mutate(
+    assessmenttype2 = ifelse(grepl("-bench$" , stockkeylabel), "bench", "assess"),
+    assessmenttype2 = ifelse(grepl("-old$"   , stockkeylabel), "old"  , assessmenttype2),
+    assessmenttype2 = ifelse(grepl("-alt$"   , stockkeylabel), "alt"  , assessmenttype2)
+  ) %>%
+
   # correction due to missing units
   mutate(
     stocksizeunits       = ifelse(stocksizedescription=="b/bmsy" & is.na(stocksizeunits),"relative",stocksizeunits),  
@@ -541,13 +558,15 @@ iAssess <-
   group_by(stockkeylabel, assessmentyear, year) %>% 
   filter(row_number() == 1) %>% 
   
+  # add old and new names
+  left_join(iStockkey, by="stockkey") %>% 
+
   # convert to lowercase
   ungroup() %>% 
   as.data.frame()
 
-
-save(iAssess, file="rdata/iAssess.RData")
-load(file="rdata/iAssess.RData")
+save(iAssess, file=paste(dropboxdir, "/rdata/iAssess.RData",sep=""))
+# load(file="rdata/iAssess.RData")
 
 # --------------------------------------------------------------------------------------------
 # Check names 
@@ -557,7 +576,6 @@ setdiff(names(iForecast), names(iRename))
 setdiff(names(iAdvice), names(iRename))
 setdiff(names(iManage), names(iRename))
 setdiff(names(iAssess), names(iRename))
-
 setdiff(names(iAssess), names(iStock))
 
 intersect(names(iAssess),names(iStock))

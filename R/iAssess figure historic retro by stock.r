@@ -5,6 +5,7 @@
 # 14/07/2017 adapted during HERAS
 # 11/08/2017 adapter for R 3.4.1 and tidyverse
 # 14/08/2017 added plot for assessment methods
+# 04/10/2017 only plot for retro. Updated for iAssess
 # -----------------------------------------------------------------------------------------------
 
 library(tidyverse)
@@ -15,26 +16,24 @@ library(scales)
 # Load utils code
 source("../mptools/r/my_utils.r")
 
-# Set working directory to dropbox folder
-dropboxdir <- get_dropbox()
-setwd(paste(dropboxdir, "/ICES Assessment database", sep=""))
+# Set dropbox folder
+dropboxdir <- paste(get_dropbox(), "/ICES Assessment database", sep="")
 
 # load the data
-load(file="rdata/sagdb.RData")
-
+load(file=paste(dropboxdir,"/rdata/iAssess.RData", sep=""))
 
 # ---------------------------------------------------------------------------------------------
 # Historic retros: plot stock data over different assessment years 
 # ---------------------------------------------------------------------------------------------
 
 d <-
-  sagdb %>% 
+  iAssess %>% 
   # filter(fishstocknew %in% c("her-noss", "whb-comb","mac-nea","hom-west"),
   # filter(fishstockold %in% c("mac-nea","mac-nea-bench","mac-nea-old")) %>% 
   # filter(fishstockold %in% c("hom-west","hom-west-bench")) %>% 
   
-  # filter(grepl("hom-west", fishstockold) ) %>% 
-  filter(grepl("mac-nea", fishstockold) ) %>% 
+  #filter(grepl("mac-nea", stockkeylabel) ) %>% 
+  filter(grepl("hom-west", stockkeylabel) ) %>% 
   # filter(grepl("whb", fishstockold) ) %>% 
   # filter(grepl("noss", fishstockold) ) %>% 
   
@@ -45,12 +44,12 @@ d <-
   filter(year             >  1980, 
          assessmentyear   >  2003,
          year             <= assessmentyear) %>% 
-  select(assessmentyear, year, fishstock, fishstockold, fishstocknew, 
+  select(assessmentyear, year, stockkeylabel, stockkeylabelold, stockkeylabelnew, 
          recruitment:lowrecruitment, f:lowf, ssb:lowssb,
-         assessmenttype2, assessmentmodel) %>% 
+         assessmenttype2) %>%    # assessmentmodel 
   mutate(assessmenttype2 = ifelse(assessmentyear == max(assessmentyear),"last",assessmenttype2)) %>% 
-  mutate(fishstock = gsub("-bench","",fishstock, fixed=TRUE),
-         fishstock = gsub("-old","",fishstock, fixed=TRUE)) %>% 
+  mutate(stockkeylabel = gsub("-bench","",stockkeylabel, fixed=TRUE),
+         stockkeylabel = gsub("-old","",stockkeylabel, fixed=TRUE)) %>% 
   mutate(tyear     = ifelse(assessmenttype2 == "assess", as.character(assessmentyear), NA),
          tyear     = ifelse(assessmenttype2 == "last", paste(assessmentyear,sep="") ,tyear),
          tyear     = ifelse(assessmenttype2 == "old", paste(assessmentyear,"-O",sep="") ,tyear),
@@ -62,16 +61,15 @@ lastyear        <- unique(unlist(select(filter(d, assessmenttype2=="last"), asse
 last <-
   d %>% 
   filter(assessmenttype2 == "last") %>% 
-  select(fishstock, year, lastssb = ssb, lastf=f, lastr = recruitment)
+  select(stockkeylabel, year, lastssb = ssb, lowssb, highssb, lastf=f, lowf, highf, lastr = recruitment, assessmenttype2)
 
 # scale to last year ?
-d <-
-  d %>% 
-  left_join(last, by=c("fishstock","year")) %>% 
-  mutate(recruitment = recruitment/lastr,
-         ssb         = ssb/lastssb,
-         f           = f / lastf)
-
+# d <-
+#   d %>% 
+#   left_join(last, by=c("fishstock","year")) %>% 
+#   mutate(recruitment = recruitment/lastr,
+#          ssb         = ssb/lastssb,
+#          f           = f / lastf)
 
 # plot ssb
 p1 <-
@@ -87,12 +85,18 @@ p1 <-
         # strip.background = element_blank(),
         legend.position = "null") +
   
+  geom_ribbon(data=last, aes(x=year, ymin=lowssb, ymax=highssb, fill = assessmenttype2), alpha=0.3, inherit.aes = FALSE) +
+
   geom_line(aes(colour = assessmenttype2, size=assessmenttype2, linetype=assessmenttype2) ) +
   
   geom_dl(aes(label  = tyear, colour = assessmenttype2), 
           method = list(dl.combine("last.points"), cex = 0.8)) +
   
   scale_colour_manual(values=c(last   = "red",
+                               assess = "black",
+                               bench  = "blue",
+                               old    = "darkgreen")) +
+  scale_fill_manual(values=c(last   = "red",
                                assess = "black",
                                bench  = "blue",
                                old    = "darkgreen")) +
@@ -126,6 +130,8 @@ p2 <-
         # strip.background = element_blank(),
         legend.position = "null") +
   
+  geom_ribbon(data=last, aes(x=year, ymin=lowf, ymax=highf, fill = assessmenttype2), alpha=0.3, inherit.aes = FALSE) +
+
   geom_line(aes(colour = assessmenttype2, size=assessmenttype2, linetype=assessmenttype2) ) +
   
   geom_dl(aes(label  = tyear, colour = assessmenttype2), 
@@ -135,6 +141,11 @@ p2 <-
                                assess = "black",
                                bench  = "blue",
                                old    = "darkgreen")) +
+  
+  scale_fill_manual(values=c(last   = "red",
+                             assess = "black",
+                             bench  = "blue",
+                             old    = "darkgreen")) +
   
   scale_linetype_manual(values=c(last   = "solid",
                                  assess = "solid",
@@ -149,8 +160,10 @@ p2 <-
   expand_limits(y = 0) +
   # xlim(2005,2020) +
   labs(x = NULL, y = NULL , title = "F")   +
-  facet_grid(fishstock ~ .)
+  facet_grid(stockkeylabel ~ .)
 
 plot_grid(p1 + theme(legend.position = "none", axis.title      = element_blank()), 
           p2 + theme(axis.title      = element_blank()),
           ncol=2, align = 'h', rel_widths = c(3,3))
+
+filter(d, assessmenttype2 == "bench") %>% View()

@@ -24,6 +24,7 @@
 # 06/09/2017 added automatic link to dropbox folder
 # 10/09/2017 split all data into new databases: iAssess, iAdvice, iManage, iForecast, iSpecies, iStock
 # 04/10/2017 updated with new ICES data on WGWIDE assessments
+# 06/10/2017 added assessmenttype2 column in excel spreadsheet
 # -----------------------------------------------------------------------------------------------
 
 # ICES Stock database
@@ -55,9 +56,9 @@ dropboxdir <- paste(get_dropbox(), "/ICES Assessment database", sep="")
 
 # download all the ices databases from webservices
 
-# getSD         <- icesSD::getSD()
-# getListStocks <- icesSAG::getListStocks(year=0)  
-# getSAG        <- icesSAG::getSAG(stock=NULL, year=0, data="summary", combine=TRUE)
+getSD         <- icesSD::getSD()
+getListStocks <- icesSAG::getListStocks(year=0)
+getSAG        <- icesSAG::getSAG(stock=NULL, year=0, data="summary", combine=TRUE)
 # 
 # save(getSD        , file=paste(dropboxdir, "/rdata/getSD.RData",sep=""))
 # save(getListStocks, file=paste(dropboxdir, "/rdata/getListStocks.RData",sep=""))
@@ -121,6 +122,9 @@ iStockkey <-
          stockkeylabelold = stockkeylabel,
          stockkeylabelnew = stockkeylabel.y) %>% 
   select(stockkey, stockkeylabelnew, stockkeylabelold)
+
+filter(iStockkey, grepl("whb", stockkeylabelold)) %>% View()
+
   
 # create iRename dataset
 iRename <-
@@ -149,11 +153,15 @@ iRename <-
 
 # filter(x, grepl("ang|ank|anf|anb", stockkeylabel)) %>% View()
 # filter(told, grepl("ang|ank|anf|anb", stockkeylabel)) %>% View()
+filter(told, grepl("whb", stockkeylabel)) %>% View()
+filter(tnew, grepl("whb", stockkeylabel)) %>% View()
+filter(iStockkey, grepl("whb", stockkeylabelnew)) %>% View()
+filter(iRename, grepl("whb", stockkeylabel)) %>% View()
 
 save(iRename, file=paste(dropboxdir, "/rdata/iRename.RData",sep=""))
 # load(file="rdata/iRename.RData")
 
-rm(t, tnew, told, oldnames)
+# rm(t, tnew, told, oldnames)
 
 # -----------------------------------------------------------------------------------------
 # read the species database (from excel, not from ICES SAG because more information added to excel version)
@@ -191,7 +199,7 @@ t <-
             funs(as.integer)) %>% 
   left_join(iRename, by="stockkeylabel")
   
-# filter(t, grepl("ivvi", stockkeylabel)) %>% View()
+# filter(t, grepl("whb", stockkeylabel)) %>% View()
 
 # Generate iAdvice
 iAdvice <-
@@ -229,12 +237,14 @@ iForecast <-
   select(stockkey, stockkeylabel, managementyear, fsqpreviousyear=fsqymin1, ssbpreviousyear = ssbymin1, fadvmax) %>% 
   data.frame()
 
-rm(t)
+# rm(t)
 
 save(iAdvice     , file=paste(dropboxdir, "/rdata/iAdvice.RData", sep=""))
 save(iForecast   , file=paste(dropboxdir, "/rdata/iForecast.RData", sep=""))
 save(iManage     , file=paste(dropboxdir, "/rdata/iManage.RData", sep=""))
 save(iStock_part1, file=paste(dropboxdir, "/rdata/iStock_part1.RData", sep=""))
+
+# filter(iStock_part1, grepl("whb", stockkeylabel)) %>% View()
 
 # -------------------------------------------------------------------------------------------------
 # Generate iStock (by stock, assessment year and date) - information on stock assessment properties
@@ -250,13 +260,15 @@ t <-
          yearoflastassessment, assessmentfrequency, yearofnextassessment, assessmentmodel2 = assessmenttype, advicereleasedate, advicecategory, 
          advicetype, useofdiscardsinadvice, pabufferapplied, published, sectionnumber, assessmentkey, modifieddate)
 
-# filter(t, grepl("ivvi", stockkeylabel)) %>% View()
+# filter(t, grepl("whb", stockkeylabel)) %>% View()
 
 # Get stock list with published/not published information
 u <-
   getListStocks %>% 
   lowcase %>%
   select(stockkeylabel, assessmentyear, status)  
+
+# filter(u, grepl("whb", stockkeylabel)) %>% View()
 
 # Combine everything in iStock object
 iStock <-
@@ -308,6 +320,8 @@ iStock <-
          advicetype, useofdiscardsinadvice, pabufferapplied, published, status, sectionnumber, assessmentkey, modifieddate,
          fmax, f01, fmed, f35spr, flim, fpa, fmsy, blim, bpa, msybtrigger) 
 
+# filter(iStock, grepl("whb", stockkeylabel)) %>% View()
+
 # iStock %>% 
 #   group_by(assessmentmodel) %>% 
 #   filter(grepl("ang", stockkeylabel, fixed=TRUE) ) %>% 
@@ -322,7 +336,7 @@ iStock <-
 
 save(iStock     , file=paste(dropboxdir, "/rdata/iStock.RData", sep=""))
 
-rm(u,t, iStock_part1)
+# rm(u,t, iStock_part1)
 
 # -----------------------------------------------------------------------------------------
 # get reference points
@@ -368,6 +382,8 @@ iAssess_part1 <-
                  fishingpressuredescription, fishingpressureunits,
                  stockpublishnote) %>% 
   
+  mutate(assessmenttype2 = "assess") %>% 
+    
   # dealing with old and new stocknames
   left_join(iRename, by = c("stockkeylabel")) %>% 
   
@@ -383,11 +399,16 @@ iAssess_part1 <-
 # Extract list of fishstock and assessment years from SAG databas
 iAssess_part1_unique <-
   iAssess_part1 %>% 
-  group_by(stockkeylabel, assessmentyear) %>% 
+  group_by(stockkey, assessmentyear, stockkeylabel, assessmenttype2) %>% 
   filter(row_number()==1) %>% 
-  select(stockkeylabel, assessmentyear)
+  select(stockkey, assessmentyear, stockkeylabel, assessmenttype2) %>% 
+  ungroup()
+
 
 # need to add the assessment date to the database !!!!!
+
+# filter(iAssess_part1, grepl("whb", stockkeylabel)) %>% View()
+# filter(iAssess_part1_unique, grepl("whb", stockkeylabel)) %>% View()
 
 # -----------------------------------------------------------------------------------------
 # read old excel assessment database and prepare for combining: iAssess_part2
@@ -415,7 +436,7 @@ iAssess_part2 <-
   ungroup() %>% 
   
   # select only the relevant fields (could be more though !!)
-  select(stockkeylabel, assessmentyear, year, 
+  select(stockkeylabel, assessmentyear, assessmenttype2, year, 
          lowrecruitment, recruitment, highrecruitment, 
          lowssb, ssb, highssb, 
          lowf, f, highf, 
@@ -430,24 +451,55 @@ iAssess_part2 <-
   mutate(source = "excel",
          units = "")
 
+# filter(iAssess_part2, grepl("whb", stockkeylabel)) %>% View()
 
 # Extract list of fishstock and assessment years from old database
 iAssess_part2_unique <-
   iAssess_part2 %>% 
-  group_by(stockkeylabel, assessmentyear) %>% 
+  group_by(stockkey, assessmentyear, stockkeylabel, assessmenttype2) %>% 
   filter(row_number()==1) %>% 
-  select(stockkeylabel, assessmentyear)
+  select(stockkey, assessmentyear, stockkeylabel, assessmenttype2) %>% 
+  ungroup()
+
 
 
 # Select from iAssess_part2 the assessments to be added to iAssess_part1
 
 iAssess_part2_toadd <-
-  setdiff(iAssess_part2_unique,iAssess_part1_unique) %>% 
-  left_join(iAssess_part2, by=c("stockkeylabel","assessmentyear")) %>% 
+  setdiff(select(iAssess_part2_unique, stockkey, assessmentyear, assessmenttype2),
+          select(iAssess_part1_unique, stockkey, assessmentyear, assessmenttype2)) %>% 
+  left_join(iAssess_part2, by=c("stockkey","assessmentyear", "assessmenttype2")) %>% 
   data.frame()
 
 # setdiff(names(iAssess_part1), names(iAssess_part2))
 # setdiff(names(iAssess_part2), names(iAssess_part1))
+# filter(iAssess_part2_toadd, grepl("whb", stockkeylabel)) %>% View()
+
+# -----------------------------------------------------------------------------------------
+# open dataset from old Quality Control Sheets: iAssess_part3
+# -----------------------------------------------------------------------------------------
+
+iAssess_part3 <-
+  get(load(file="rdata/qcsdata.RData") ) %>% 
+  rename(stockkeylabel=stock, recruitment=r) %>% 
+  mutate(assessmenttype2 = "assess") %>% 
+  left_join(iRename, by="stockkeylabel") %>% 
+  select(stockkey, stockkeylabel, assessmentyear, assessmenttype2, year, recruitment, ssb, f )
+
+# Extract list of fishstock and assessment years from old QCS database
+iAssess_part3_unique <-
+  iAssess_part3 %>% 
+  group_by(stockkey, assessmentyear, stockkeylabel, assessmenttype2) %>% 
+  filter(row_number()==1) %>% 
+  select(stockkey, assessmentyear, stockkeylabel, assessmenttype2) %>% 
+  ungroup()
+
+# Select from iAssess_part3 the assessments to be added to iAssess_part1
+iAssess_part3_toadd <-
+  setdiff(select(iAssess_part3_unique, stockkey, assessmentyear, assessmenttype2),
+          select(iAssess_part2_unique, stockkey, assessmentyear, assessmenttype2)) %>% 
+  left_join(iAssess_part3, by=c("stockkey","assessmentyear", "assessmenttype2")) %>% 
+  data.frame()
 
 # -----------------------------------------------------------------------------------------
 # Generate iAssess and do cleaning up
@@ -455,6 +507,7 @@ iAssess_part2_toadd <-
 
 iAssess <- 
   rbind.all.columns(iAssess_part1, iAssess_part2_toadd) %>%  
+  rbind.all.columns(., iAssess_part3) %>% 
 
   # corrections to stock size descriptions
   mutate(
@@ -496,7 +549,7 @@ iAssess <-
     stocksizeunits = ifelse(grepl("kg/h", stocksizeunits, fixed=TRUE), "kg/hour", stocksizeunits),
     stocksizeunits = ifelse(grepl("n/h", stocksizeunits, fixed=TRUE), "n/hour", stocksizeunits)
   ) %>% 
-  
+
   # corrections to fishing pressure descriptions
   mutate(
     fishingpressuredescription = gsub("fishing pressure: ",""  , fishingpressuredescription),
@@ -532,14 +585,6 @@ iAssess <-
     fishingpressureunits = ifelse(grepl("ratio",fishingpressureunits), "relative",fishingpressureunits) 
   ) %>% 
   
-  # Add assessment type2 category (assess, bench, old, alt, explore)
-  # CHECK: Should I remove the labels from the fishstock variable  ??
-  mutate(
-    assessmenttype2 = ifelse(grepl("-bench$" , stockkeylabel), "bench", "assess"),
-    assessmenttype2 = ifelse(grepl("-old$"   , stockkeylabel), "old"  , assessmenttype2),
-    assessmenttype2 = ifelse(grepl("-alt$"   , stockkeylabel), "alt"  , assessmenttype2)
-  ) %>%
-
   # correction due to missing units
   mutate(
     stocksizeunits       = ifelse(stocksizedescription=="b/bmsy" & is.na(stocksizeunits),"relative",stocksizeunits),  
@@ -555,7 +600,7 @@ iAssess <-
   ) %>% 
   
   # remove double series (e.g. mac-nea 2013 is twice in the sag download)
-  group_by(stockkeylabel, assessmentyear, year) %>% 
+  group_by(stockkeylabel, assessmentyear, year, assessmenttype2) %>% 
   filter(row_number() == 1) %>% 
   
   # add old and new names
@@ -567,6 +612,11 @@ iAssess <-
 
 save(iAssess, file=paste(dropboxdir, "/rdata/iAssess.RData",sep=""))
 # load(file="rdata/iAssess.RData")
+
+
+# filter(iAssess, assessmentyear == 2017 & grepl("mac", stockkeylabel)) %>% View()
+# filter(iAssess, assessmentyear == 2016 & grepl("mac", stockkeylabel)) %>% View()
+# filter(iAssess_part2_toadd, assessmentyear == 2016 & grepl("mac", stockkeylabel)) %>% View()
 
 # --------------------------------------------------------------------------------------------
 # Check names 
@@ -580,4 +630,5 @@ setdiff(names(iAssess), names(iStock))
 
 intersect(names(iAssess),names(iStock))
 
+# filter(iAssess, stockkeylabelold == "whb-comb", assessmentyear == 2017)
 

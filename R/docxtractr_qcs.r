@@ -7,6 +7,7 @@
 
 library(docxtractr)
 library(tidyverse)
+library(stringr)
 
 # make list of filenames
 file.list <- c(list.files(path       = "data/qcs-docs-docx/", 
@@ -52,7 +53,7 @@ for (i in 1:length(file.list)) {
       cbind(rows) %>% 
       gather(key=year, value=value, 1:(nc-1)) %>% 
       mutate(stock          = tolower(stock), 
-             longvar            = longvar, 
+             longvar        = longvar, 
              value          = as.numeric(gsub("\\s+","",value)),
              assessmentyear = substr(as.character(assessmentyear), 1,4),
              assessmentyear = as.integer(assessmentyear)) %>% 
@@ -70,11 +71,11 @@ for (i in 1:length(file.list)) {
 
 
 # check and convert TO BE DONE
-unique(qcsdata$longvar)
-
-qcsdata <-
+t <-
   qcsdata %>% 
   mutate(
+    year    = as.integer(year),
+    
     longvar = tolower(longvar),
     longvar = gsub("  "," ", longvar), 
     var     = ifelse(grepl("average f"  , longvar), "f"  , NA),
@@ -82,23 +83,74 @@ qcsdata <-
     var     = ifelse(grepl("recruitment", longvar), "r"  , var),
     var     = ifelse(grepl("fishable"   , longvar), "fb" , var),
     
-    unit    = ifelse(var=="ssb" & grepl("\\(.+\\)$"  , longvar), gsub(".+\\((.+)\\)$","\\1", longvar), NA),
+    unit    = ifelse(var=="f"                                  , "year-1"                            , NA),
+    unit    = ifelse(var=="ssb" & grepl("\\(.+\\)$"  , longvar), gsub(".+\\((.+)\\)$","\\1", longvar), unit),
     unit    = ifelse(var=="fb"  & grepl("\\(.+\\)$"  , longvar), gsub(".+\\((.+)\\)$","\\1", longvar), unit),
     unit    = ifelse(             grepl("unit: (.+)$", longvar), gsub(".+unit: (.+)$","\\1", longvar), unit),
+    unit    = ifelse(var=="r" & stock=="cod-2532"              , "thousands"                         , unit),  
+    unit    = ifelse(var=="r" & stock=="cod-iceg"              , "millions"                          , unit),  
+    unit    = ifelse(var=="r" & stock=="ple-celt"              , "thousands"                         , unit),  
+    unit    = ifelse(var=="r" & stock=="hke-soth"              , "check"                             , unit),
     
-    age     = ifelse(var=="f" & grepl("\\(.+\\)$", longvar), gsub(".+\\((.+)\\)$","\\1", longvar), NA) )
+    unit    = gsub("[^[:alnum:]]", "", unit), 
+    unit    = gsub("^000s$|^000$","thousands", unit),
+    unit    = gsub("^000 000s$|000000s","millions" , unit),
+    unit    = gsub("^000t$|^000stonnes$|^000tonnes$","thousand tonnes" , unit),
+    unit    = gsub("000million$","billions" , unit),
+    unit    = gsub("^t$", "tonnes",unit),
+    
+    
+    age     = ifelse(var=="f" & grepl("\\(.+\\)$", longvar), gsub(".+\\((.+)\\)$","\\1", longvar), NA),
+    age     = gsub(" +", "", age), 
+    age     = gsub(",,u", "", age), 
+    age     = gsub(",u", "", age), 
+    age     = gsub(",w", "", age), 
+    age     = ifelse(var=="f" & stock=="anb-78ab" & assessmentyear <= 2000, "4-8" , age),
+    age     = ifelse(var=="f" & stock=="anb-78ab" & assessmentyear  > 2000, "6-10", age),
+    age     = ifelse(var=="f" & stock=="anp-78ab" & assessmentyear <= 2000, "3-7", age),
+    age     = ifelse(var=="f" & stock=="anp-78ab" & assessmentyear  > 2000, "3-8", age),
+    age     = ifelse(var=="f" & stock=="cod-347d" & assessmentyear <= 2002, "2-8", age),
+    age     = ifelse(var=="f" & stock=="cod-347d" & assessmentyear  > 2002, "2-4", age),
+    age     = ifelse(var=="f" & stock=="her-irls"                          ,"2-7" , age ),
+    
+    age     = ifelse(var=="r" & grepl(".+\\(age (.)\\).+", longvar), gsub(".+\\(age (.)\\).+","\\1", longvar), age),
+    age     = ifelse(var=="r" & grepl(".+\\(age (.) \\).+", longvar), gsub(".+\\(age (.) \\).+","\\1", longvar), age),
+    age     = ifelse(var=="r" & stock=="anb-78ab" & assessmentyear <= 2000, "1", age),
+    age     = ifelse(var=="r" & stock=="anb-78ab" & assessmentyear  > 2000, "2", age),
+    age     = ifelse(var=="r" & stock=="anp-78ab" & assessmentyear <= 2000, "0", age),
+    age     = ifelse(var=="r" & stock=="anp-78ab" & assessmentyear  > 2000, "1", age),
+    age     = ifelse(var=="r" & stock=="cod-2532", "2"    , age),  # looked up in ACFM report
+    age     = ifelse(var=="r" & stock=="her-irls", "1"    , age),  # looked up in ACFM report
+    age     = ifelse(var=="r" & stock=="mgw-78"  , "1"    , age),  # looked up in ACFM report
+    age     = ifelse(var=="r" & stock=="ple-celt", "1"    , age),  # looked up in ACFM report
+    age     = ifelse(var=="r" & stock=="whg-47d" , "check", age)
+  )
 
-filter(t, is.na(var1)) %>% View()
-filter(t, stock=="her-3a22") %>% View()
-filter(t, grepl("tonnes", var)) %>% distinct(var) %>% View()
-filter(t, grepl("\\(.+\\)$", var)) %>% distinct(var) %>% View()
 unique(t$unit)
+unique(t$age)
 
-# save dataset
+filter(t, var=="r"&is.na(unit)) %>% group_by(stock, assessmentyear) %>%  filter(row_number()==1) %>%  View()
+filter(t, var=="r"&is.na(age)) %>% group_by(stock, assessmentyear) %>%  filter(row_number()==1) %>%  View()
+filter(t, stock=="her-3a22") %>% View()
+filter(t, grepl("1990", age)) %>%  View()
+filter(t, grepl("\\(.+\\)$", var)) %>% distinct(var) %>% View()
+
+setf <- t %>% filter(var=="f") %>% select(stock, assessmentyear, year, var, f=value, f_unit=unit, f_age=age)
+setr <- t %>% filter(var=="r") %>% select(stock, assessmentyear, year, var, r=value, r_unit=unit, r_age=age)
+setssb <- t %>% filter(var=="ssb") %>% select(stock, assessmentyear, year, var, ssb=value, ssb_unit=unit, ssb_age=age)
+setfb <- t %>% filter(var=="fb") %>% select(stock, assessmentyear, year, var, fb=value, fb_unit=unit, fb_age=age)
+
+qcsdata <-
+  select(setr, stock, assessmentyear, year, r, r_unit, r_age) %>% 
+  full_join(select(setssb, stock, assessmentyear, year, ssb, ssb_unit), 
+            by=c("stock","assessmentyear","year")) %>% 
+  full_join(select(setfb, stock, assessmentyear, year, fb, fb_unit), 
+            by=c("stock","assessmentyear","year")) %>% 
+  full_join(select(setf, stock, assessmentyear, year, f, f_unit, f_age) , 
+            by=c("stock","assessmentyear","year")) 
+
+  # save dataset
 save(qcsdata, file="rdata/qcsdata.RData")
-
-
-
 
 
 

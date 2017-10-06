@@ -32,37 +32,36 @@ d <-
   # filter(fishstockold %in% c("mac-nea","mac-nea-bench","mac-nea-old")) %>% 
   # filter(fishstockold %in% c("hom-west","hom-west-bench")) %>% 
   
-  filter(grepl("mac-nea", stockkeylabel) ) %>% 
-  #filter(grepl("hom-west", stockkeylabel) ) %>% 
-  #filter(grepl("whb-comb", stockkeylabel) ) %>% 
+  filter(grepl("cod-iceg", stockkeylabelold) ) %>% 
+  # filter(grepl("mac-nea|hom-west|whb-comb|her-noss", stockkeylabelold) ) %>% 
   # filter(grepl("whb", fishstockold) ) %>% 
   # filter(grepl("noss", fishstockold) ) %>% 
   
-  # filter(fishstocknew %in% c("her-47d3"),
-  # filter(grepl("hom.27.2a", fishstocknew)) %>% 
-  # filter(grepl("her.27.3a", fishstocknew)) %>% 
   ungroup() %>% 
   filter(year             >  1980, 
          assessmentyear   >  1995,
          year             <= assessmentyear) %>% 
-  select(assessmentyear, year, stockkeylabel, stockkeylabelold, stockkeylabelnew, 
+  select(assessmentyear, year, stockkey, stockkeylabel, stockkeylabelold, stockkeylabelnew, 
          recruitment:lowrecruitment, f:lowf, ssb:lowssb,
-         assessmenttype2) %>%    # assessmentmodel 
-  mutate(assessmenttype2 = ifelse(assessmentyear == max(assessmentyear),"last",assessmenttype2)) %>% 
-  mutate(stockkeylabel = gsub("-bench","",stockkeylabel, fixed=TRUE),
-         stockkeylabel = gsub("-old","",stockkeylabel, fixed=TRUE)) %>% 
+         assessmenttype2) %>%     
+  mutate(assessmenttype2 = ifelse(assessmentyear == max(assessmentyear) &
+                                    assessmenttype2 == "assess", "last",assessmenttype2)) %>% 
   mutate(tyear     = ifelse(assessmenttype2 == "assess", as.character(assessmentyear), NA),
-         tyear     = ifelse(assessmenttype2 == "last", paste(assessmentyear,sep="") ,tyear),
-         tyear     = ifelse(assessmenttype2 == "old", paste(assessmentyear,"-O",sep="") ,tyear),
-         tyear     = ifelse(assessmenttype2 == "bench", paste(assessmentyear,"-B",sep="") ,tyear)) %>% 
+         tyear     = ifelse(assessmenttype2 == "last"  , paste(assessmentyear,sep="") ,tyear),
+         tyear     = ifelse(assessmenttype2 == "old"   , paste(assessmentyear,"-O",sep="") ,tyear),
+         tyear     = ifelse(assessmenttype2 == "bench" , paste(assessmentyear,"-B",sep="") ,tyear),
+         tyear     = ifelse(assessmenttype2 == "alt" , paste(assessmentyear,"-A",sep="") ,tyear)) %>% 
   data.frame()
+
+# filter(iAssess, assessmentyear == 2016 & grepl("mac", stockkeylabelold)) %>% View()
+# filter(d      , assessmentyear == 2016 & grepl("mac", stockkeylabel)) %>% View()
 
 # get the last assessment year and stock name
 lastyear        <- unique(unlist(select(filter(d, assessmenttype2=="last"), assessmentyear)))
 last <-
   d %>% 
   filter(assessmenttype2 == "last") %>% 
-  select(stockkeylabel, year, lastssb = ssb, lowssb, highssb, lastf=f, lowf, highf, lastr = recruitment, assessmenttype2)
+  select(stockkey, stockkeylabel, stockkeylabelold, stockkeylabelnew, assessmentyear, year, lastssb = ssb, lowssb, highssb, lastf=f, lowf, highf, lastr = recruitment, assessmenttype2)
 
 # scale to last year ?
 # d <-
@@ -93,28 +92,16 @@ p1 <-
   geom_dl(aes(label  = tyear, colour = assessmenttype2), 
           method = list(dl.combine("last.points"), cex = 0.8)) +
   
-  scale_colour_manual(values=c(last   = "red",
-                               assess = "black",
-                               bench  = "blue",
-                               old    = "darkgreen")) +
-  scale_fill_manual(values=c(last   = "red",
-                               assess = "black",
-                               bench  = "blue",
-                               old    = "darkgreen")) +
-  
-  scale_linetype_manual(values=c(last   = "solid",
-                                 assess = "solid",
-                                 bench  = "dashed",
-                                 old    = "dotdash")) +
-  
-  scale_size_manual(values=c(last   = 1.5,
-                             assess = 0.8,
-                             bench  = 1.2,
-                             old    = 0.8)) +
+  scale_colour_manual(values=c(last = "red",assess = "black",bench = "blue",old = "darkgreen", alt="gray")) +
+  scale_fill_manual  (values=c(last = "red",assess = "black",bench = "blue",old = "darkgreen", alt="gray")) +
+  scale_linetype_manual(values=c(last="solid",assess="solid",bench="dashed",old="dotdash", alt="dotted")) +
+  scale_size_manual(values=c(last= 1.5, assess = 0.8,bench  = 1.2,old = 0.8, alt=0.8)) +
   
   expand_limits(y = 0) +
   # xlim(2005,2020) +
-  labs(x = NULL, y = NULL , title = "SSB")  
+  labs(x = NULL, y = NULL , title = "SSB")  +
+  facet_grid(stockkeylabelold ~ ., scales="free_y")
+
 
 
 # plot f
@@ -138,33 +125,20 @@ p2 <-
   geom_dl(aes(label  = tyear, colour = assessmenttype2), 
           method = list(dl.combine("last.points"), cex = 0.8)) +
   
-  scale_colour_manual(values=c(last   = "red",
-                               assess = "black",
-                               bench  = "blue",
-                               old    = "darkgreen")) +
-  
-  scale_fill_manual(values=c(last   = "red",
-                             assess = "black",
-                             bench  = "blue",
-                             old    = "darkgreen")) +
-  
-  scale_linetype_manual(values=c(last   = "solid",
-                                 assess = "solid",
-                                 bench  = "dashed",
-                                 old    = "dotdash")) +
-  
-  scale_size_manual(values=c(last   = 1.5,
-                             assess = 0.8,
-                             bench  = 1.2,
-                             old    = 0.8)) +
+  scale_colour_manual(values=c(last = "red",assess = "black",bench = "blue",old = "darkgreen", alt="gray")) +
+  scale_fill_manual  (values=c(last = "red",assess = "black",bench = "blue",old = "darkgreen", alt="gray")) +
+  scale_linetype_manual(values=c(last="solid",assess="solid",bench="dashed",old="dotdash", alt="dotted")) +
+  scale_size_manual(values=c(last= 1.5, assess = 0.8,bench  = 1.2,old = 0.8, alt=0.8)) +
   
   expand_limits(y = 0) +
   # xlim(2005,2020) +
   labs(x = NULL, y = NULL , title = "F")   +
-  facet_grid(stockkeylabel ~ .)
+  facet_grid(stockkeylabelold ~ ., scales="free_y")
 
-plot_grid(p1 + theme(legend.position = "none", axis.title      = element_blank()), 
-          p2 + theme(axis.title      = element_blank()),
-          ncol=2, align = 'h', rel_widths = c(3,3))
+plot_grid(p1 + theme(legend.position  = "none", 
+                     axis.title       = element_blank(),
+                     strip.background = element_rect(colour=NA, fill=NA),
+                     strip.text       = element_text(colour=NA)), 
+          p2 + theme(axis.title       = element_blank()),
+          ncol=2, align = 'h', rel_widths = c(3.5,3))
 
-filter(d, assessmenttype2 == "bench") %>% View()

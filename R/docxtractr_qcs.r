@@ -75,6 +75,15 @@ t <-
   qcsdata %>% 
   mutate(
     year    = as.integer(year),
+    stock   = gsub(".qcs.docx","",stock), 
+    stock   = gsub("anb-89","anb-8c9a", stock),
+    stock   = gsub("anp-89","anp-8c9a", stock),
+    stock   = gsub("cod-coast","cod-coas", stock),
+    stock   = gsub("had-icel","had-iceg", stock),
+    stock   = gsub("had-irisde3","had-iris", stock),
+    stock   = gsub("her-2532excgor","her-2532-gor", stock),
+    stock   = gsub("mac-wes","mac-nea", stock),
+    
     
     longvar = tolower(longvar),
     longvar = gsub("  "," ", longvar), 
@@ -126,19 +135,20 @@ t <-
     age     = ifelse(var=="r" & stock=="whg-47d" , "check", age)
   )
 
-unique(t$unit)
-unique(t$age)
+# unique(t$stock)
+# unique(t$unit)
+# unique(t$age)
+# 
+# filter(t, var=="r"&is.na(unit)) %>% group_by(stock, assessmentyear) %>%  filter(row_number()==1) %>%  View()
+# filter(t, var=="r"&is.na(age)) %>% group_by(stock, assessmentyear) %>%  filter(row_number()==1) %>%  View()
+# filter(t, stock=="her-3a22") %>% View()
+# filter(t, grepl("1990", age)) %>%  View()
+# filter(t, grepl("\\(.+\\)$", var)) %>% distinct(var) %>% View()
 
-filter(t, var=="r"&is.na(unit)) %>% group_by(stock, assessmentyear) %>%  filter(row_number()==1) %>%  View()
-filter(t, var=="r"&is.na(age)) %>% group_by(stock, assessmentyear) %>%  filter(row_number()==1) %>%  View()
-filter(t, stock=="her-3a22") %>% View()
-filter(t, grepl("1990", age)) %>%  View()
-filter(t, grepl("\\(.+\\)$", var)) %>% distinct(var) %>% View()
-
-setf <- t %>% filter(var=="f") %>% select(stock, assessmentyear, year, var, f=value, f_unit=unit, f_age=age)
-setr <- t %>% filter(var=="r") %>% select(stock, assessmentyear, year, var, r=value, r_unit=unit, r_age=age)
+setf   <- t %>% filter(var=="f")   %>% select(stock, assessmentyear, year, var, f=value, f_unit=unit, f_age=age)
+setr   <- t %>% filter(var=="r")   %>% select(stock, assessmentyear, year, var, r=value, r_unit=unit, r_age=age)
 setssb <- t %>% filter(var=="ssb") %>% select(stock, assessmentyear, year, var, ssb=value, ssb_unit=unit, ssb_age=age)
-setfb <- t %>% filter(var=="fb") %>% select(stock, assessmentyear, year, var, fb=value, fb_unit=unit, fb_age=age)
+setfb  <- t %>% filter(var=="fb")  %>% select(stock, assessmentyear, year, var, fb=value, fb_unit=unit, fb_age=age)
 
 qcsdata <-
   select(setr, stock, assessmentyear, year, r, r_unit, r_age) %>% 
@@ -147,14 +157,31 @@ qcsdata <-
   full_join(select(setfb, stock, assessmentyear, year, fb, fb_unit), 
             by=c("stock","assessmentyear","year")) %>% 
   full_join(select(setf, stock, assessmentyear, year, f, f_unit, f_age) , 
-            by=c("stock","assessmentyear","year")) 
+            by=c("stock","assessmentyear","year")) %>% 
+  arrange(stock, assessmentyear, year) 
 
   # save dataset
 save(qcsdata, file="rdata/qcsdata.RData")
 
 
 
-
-
+# plot overview
+qcsdata %>%
+  select(stock, assessmentyear, year, r, ssb, f) %>% 
+  gather(key=variable, value=value, r:f) %>%
+  mutate(stock = factor(stock), 
+         stock = factor(stock, levels = rev(levels(stock)))) %>% 
+           
+  ggplot(aes(x=assessmentyear, y=stock)) +
+  theme_publication() +
+  theme(panel.spacing    = unit(0.1, "lines"),
+        text             = element_text(size=8),
+        legend.position  = "none",
+        legend.direction = "vertical",
+        legend.title     = element_blank()) +
+  geom_point(aes(colour = stock)) +
+  scale_y_discrete(position="right") +
+  labs(y = "fishstock", x=" " ) +
+  facet_wrap(~variable)
 
 

@@ -4,8 +4,6 @@
 # 25/09/2017 taken from ices SAG data plot
 # -----------------------------------------------------------------------------------------------
 
-setwd("D:/Dropbox/ICES Assessment database")
-
 library(tidyverse) # for piping and easy coding
 library(reshape2)  # reshaping data; e.g. dcast
 library(ggthemes)  # for themes
@@ -17,8 +15,11 @@ library(RColorBrewer) # colours
 # Load utils code
 source("D:/XXX/PRF/r/my_utils.r")
 
+# Set working directory to dropbox folder
+dropboxdir <- paste(get_dropbox(), "/ICES Assessment database", sep="")
+
 # Load dataset
-load(file="rdata/sagdb.RData")
+load(file=paste(dropboxdir, "/rdata/iAssess.RData",sep=""))
 
 # ---------------------------------------------------------------------------------------------
 # plots of assessments by assessment year and stock and fisheries guild (for a single variable)
@@ -28,15 +29,14 @@ load(file="rdata/sagdb.RData")
 # without success. 1/8/2017
 
 x <-
-  sagdb %>% 
-  filter(assessmentyear >= 1990) %>% 
+  iAssess %>% 
+  filter(assessmentyear >= 1986) %>% 
   filter(fisheriesguild != "", !is.na(fisheriesguild)) %>% 
   filter(fisheriesguild %in% c("crustacean","elasmobranch","pelagic","demersal","benthic")) %>%
-  mutate(fishstockold = ifelse(is.na(fishstockold)|fishstockold=="", fishstocknew, fishstockold)) %>% 
-  group_by(fishstockold, fishstocknew, assessmentyear, source) %>% 
+  group_by(stockkeylabelold, stockkeylabelnew, assessmentyear, source) %>% 
   data.frame() %>% 
-  mutate(fishstockold = factor(fishstockold), 
-         fishstockold = factor(fishstockold, levels = rev(levels(fishstockold)))) %>% 
+  mutate(stockkeylabelold = factor(stockkeylabelold), 
+         stockkeylabelold = factor(stockkeylabelold, levels = rev(levels(stockkeylabelold)))) %>% 
   
   # here is the bit to add the colour variable
   mutate(source = factor(source))
@@ -47,7 +47,7 @@ names(myColors) <- levels(x$source)
 
 p1 <-
   filter(x, fisheriesguild %in% c("crustacean","elasmobranch")) %>% 
-  ggplot(aes(x=assessmentyear, y=fishstockold)) +
+  ggplot(aes(x=assessmentyear, y=stockkeylabelold)) +
   theme_publication() +
   theme(panel.spacing = unit(1, "lines"),
         text          = element_text(size=8),
@@ -60,7 +60,7 @@ p1 <-
 
 p2a <-
   filter(x, fisheriesguild %in% c("pelagic")) %>% 
-  ggplot(aes(x=assessmentyear, y=fishstockold)) +
+  ggplot(aes(x=assessmentyear, y=stockkeylabelold)) +
   theme_publication() +
   theme(panel.spacing = unit(1, "lines"),
         text          = element_text(size=8),
@@ -73,7 +73,7 @@ p2a <-
 
 p2b <-
   filter(x, fisheriesguild %in% c("benthic")) %>% 
-  ggplot(aes(x=assessmentyear, y=fishstockold)) +
+  ggplot(aes(x=assessmentyear, y=stockkeylabelold)) +
   theme_publication() +
   theme(panel.spacing = unit(1, "lines"),
         text          = element_text(size=8),
@@ -98,7 +98,7 @@ p2 <- plot_grid(p2a +
 
 p3 <-
   filter(x, fisheriesguild %in% c("demersal")) %>% 
-  ggplot(aes(x=assessmentyear, y=fishstockold)) +
+  ggplot(aes(x=assessmentyear, y=stockkeylabelold)) +
   theme_publication() +
   theme(panel.spacing    = unit(0.1, "lines"),
         text             = element_text(size=8),
@@ -121,4 +121,6 @@ plot_grid(p1 + theme(legend.position="none") + theme(axis.title.y=element_blank(
 # unique(x$stockpublishnote)
 # unique(x$assessmentcat)
 # unique(x$status)
+
+
 

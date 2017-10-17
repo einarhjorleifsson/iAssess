@@ -83,8 +83,7 @@ tacareas <-
   unite(tacarea, ICES1:ICES19, sep="-") %>% 
   mutate(tacarea = gsub("[-]{2,}", "", tacarea) ) %>% 
   mutate(
-    tacarea  = tolower(tacarea),
-    tacarea2 = roman2numeric(gsub('[^ivx]','',tacarea))) 
+    tacarea  = tolower(tacarea)) 
 
 
 

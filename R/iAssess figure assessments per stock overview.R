@@ -2,6 +2,7 @@
 # iAssess figure all assessments per stock
 #
 # 25/09/2017 taken from ices SAG data plot
+# 16/10/2017 now includes datapublished
 # -----------------------------------------------------------------------------------------------
 
 library(tidyverse) # for piping and easy coding
@@ -11,6 +12,7 @@ library(pander)    # for print tables
 library(readxl)    # read excel files
 library(cowplot)   # multiplots
 library(RColorBrewer) # colours
+library(lubridate)
 
 # Load utils code
 source("D:/XXX/PRF/r/my_utils.r")
@@ -36,8 +38,12 @@ x <-
   group_by(stockkeylabelold, stockkeylabelnew, assessmentyear, source) %>% 
   data.frame() %>% 
   mutate(stockkeylabelold = factor(stockkeylabelold), 
-         stockkeylabelold = factor(stockkeylabelold, levels = rev(levels(stockkeylabelold)))) %>% 
-  
+         stockkeylabelold = factor(stockkeylabelold, levels = rev(levels(stockkeylabelold))),
+         datepublished    = ifelse(is.na(datepublished), 
+                                   make_date(year = assessmentyear, month = 6L, day = 30L),
+                                   datepublished),
+         datepublished    = as.Date(datepublished, origin="1970-01-01")) %>% 
+
   # here is the bit to add the colour variable
   mutate(source = factor(source))
 
@@ -47,7 +53,7 @@ names(myColors) <- levels(x$source)
 
 p1 <-
   filter(x, fisheriesguild %in% c("crustacean","elasmobranch")) %>% 
-  ggplot(aes(x=assessmentyear, y=stockkeylabelold)) +
+  ggplot(aes(x=datepublished, y=stockkeylabelold)) +
   theme_publication() +
   theme(panel.spacing = unit(1, "lines"),
         text          = element_text(size=8),
@@ -55,12 +61,13 @@ p1 <-
   geom_point(aes(colour = source)) +
   scale_colour_manual(name = "source", values = myColors, na.value="lightgray") +
   scale_y_discrete(position="right") +
+  scale_x_date(date_breaks = "1 year", date_labels = "%y") +
   labs(x = " ", y = NULL ) +
   facet_wrap(~fisheriesguild, scales="free_y", shrink=TRUE, ncol=1)
 
 p2a <-
   filter(x, fisheriesguild %in% c("pelagic")) %>% 
-  ggplot(aes(x=assessmentyear, y=stockkeylabelold)) +
+  ggplot(aes(x=datepublished, y=stockkeylabelold)) +
   theme_publication() +
   theme(panel.spacing = unit(1, "lines"),
         text          = element_text(size=8),
@@ -68,12 +75,13 @@ p2a <-
   geom_point(aes(colour = source)) +
   scale_colour_manual(name = "source", values = myColors, na.value="lightgray") +
   scale_y_discrete(position="right") +
+  scale_x_date(date_breaks = "1 year", date_labels = "%y") +
   labs(x = NULL, y = NULL ) +
   facet_wrap(~fisheriesguild, scales="free_y", shrink=TRUE, ncol=1)
 
 p2b <-
   filter(x, fisheriesguild %in% c("benthic")) %>% 
-  ggplot(aes(x=assessmentyear, y=stockkeylabelold)) +
+  ggplot(aes(x=datepublished, y=stockkeylabelold)) +
   theme_publication() +
   theme(panel.spacing = unit(1, "lines"),
         text          = element_text(size=8),
@@ -81,6 +89,7 @@ p2b <-
   geom_point(aes(colour = source)) +
   scale_colour_manual(name = "source", values = myColors, na.value="lightgray") +
   scale_y_discrete(position="right") +
+  scale_x_date(date_breaks = "1 year", date_labels = "%y") +
   labs(x = "assessmentyear", y = NULL ) +
   facet_wrap(~fisheriesguild, scales="free_y", shrink=TRUE, ncol=1)
 
@@ -98,7 +107,7 @@ p2 <- plot_grid(p2a +
 
 p3 <-
   filter(x, fisheriesguild %in% c("demersal")) %>% 
-  ggplot(aes(x=assessmentyear, y=stockkeylabelold)) +
+  ggplot(aes(x=datepublished, y=stockkeylabelold)) +
   theme_publication() +
   theme(panel.spacing    = unit(0.1, "lines"),
         text             = element_text(size=8),
@@ -108,6 +117,7 @@ p3 <-
   geom_point(aes(colour = source)) +
   scale_colour_manual(name = "source", values = myColors, na.value="lightgray") +
   scale_y_discrete(position="right") +
+  scale_x_date(date_breaks = "1 year", date_labels = "%y") +
   labs(y = "fishstock", x=" " ) +
   facet_wrap(~fisheriesguild, scales="free_y", shrink=TRUE)
 

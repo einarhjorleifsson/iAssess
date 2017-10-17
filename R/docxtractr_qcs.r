@@ -69,7 +69,6 @@ for (i in 1:length(file.list)) {
   
 } #end of i for loop  
 
-
 # check and convert TO BE DONE
 t <-
   qcsdata %>% 
@@ -147,18 +146,22 @@ t <-
 
 setf   <- t %>% filter(var=="f")   %>% select(stock, assessmentyear, year, var, f=value, f_unit=unit, f_age=age)
 setr   <- t %>% filter(var=="r")   %>% select(stock, assessmentyear, year, var, r=value, r_unit=unit, r_age=age)
-setssb <- t %>% filter(var=="ssb") %>% select(stock, assessmentyear, year, var, ssb=value, ssb_unit=unit, ssb_age=age)
-setfb  <- t %>% filter(var=="fb")  %>% select(stock, assessmentyear, year, var, fb=value, fb_unit=unit, fb_age=age)
+setssb <- t %>% filter(var=="ssb"|var=="fb") %>%  select(stock, assessmentyear, year, var, ssb=value, ssb_unit=unit, ssb_age=age) 
+
+# setssb <- t %>% filter(var=="ssb") %>% select(stock, assessmentyear, year, var, ssb=value, ssb_unit=unit, ssb_age=age)
+# setfb  <- t %>% filter(var=="fb")  %>% select(stock, assessmentyear, year, var, fb=value, fb_unit=unit, fb_age=age)
 
 qcsdata <-
   select(setr, stock, assessmentyear, year, r, r_unit, r_age) %>% 
   full_join(select(setssb, stock, assessmentyear, year, ssb, ssb_unit), 
             by=c("stock","assessmentyear","year")) %>% 
-  full_join(select(setfb, stock, assessmentyear, year, fb, fb_unit), 
-            by=c("stock","assessmentyear","year")) %>% 
+  # full_join(select(setfb, stock, assessmentyear, year, fb, fb_unit), 
+  #           by=c("stock","assessmentyear","year")) %>% 
   full_join(select(setf, stock, assessmentyear, year, f, f_unit, f_age) , 
             by=c("stock","assessmentyear","year")) %>% 
-  arrange(stock, assessmentyear, year) 
+  arrange(stock, assessmentyear, year) %>% 
+  mutate(ssb      = ifelse(ssb_unit == "thousand tonnes", ssb * 1000, ssb),
+         ssb_unit = ifelse(ssb_unit == "thousand tonnes", "tonnes", ssb_unit))
 
   # save dataset
 save(qcsdata, file="rdata/qcsdata.RData")

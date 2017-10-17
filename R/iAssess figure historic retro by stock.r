@@ -28,18 +28,20 @@ load(file=paste(dropboxdir,"/rdata/iAssess.RData", sep=""))
 
 d <-
   iAssess %>% 
-  # filter(fishstocknew %in% c("her-noss", "whb-comb","mac-nea","hom-west"),
-  # filter(fishstockold %in% c("mac-nea","mac-nea-bench","mac-nea-old")) %>% 
-  # filter(fishstockold %in% c("hom-west","hom-west-bench")) %>% 
+
+  # filter(grepl("cod-iceg", stockkeylabelold) ) %>% 
+  # filter(grepl("mac-nea", stockkeylabelold) ) %>% 
+  # filter(grepl("ple-nsea", stockkeylabelold) ) %>% 
+  # filter(grepl("cod-347d", stockkeylabelold) ) %>% 
+  filter(grepl("hom-west", stockkeylabelold) ) %>% 
   
-  filter(grepl("cod-iceg", stockkeylabelold) ) %>% 
   # filter(grepl("mac-nea|hom-west|whb-comb|her-noss", stockkeylabelold) ) %>% 
   # filter(grepl("whb", fishstockold) ) %>% 
   # filter(grepl("noss", fishstockold) ) %>% 
   
   ungroup() %>% 
   filter(year             >  1980, 
-         assessmentyear   >  1995,
+         assessmentyear   >  1990,
          year             <= assessmentyear) %>% 
   select(assessmentyear, year, stockkey, stockkeylabel, stockkeylabelold, stockkeylabelnew, 
          recruitment:lowrecruitment, f:lowf, ssb:lowssb,
@@ -48,9 +50,9 @@ d <-
                                     assessmenttype2 == "assess", "last",assessmenttype2)) %>% 
   mutate(tyear     = ifelse(assessmenttype2 == "assess", as.character(assessmentyear), NA),
          tyear     = ifelse(assessmenttype2 == "last"  , paste(assessmentyear,sep="") ,tyear),
-         tyear     = ifelse(assessmenttype2 == "old"   , paste(assessmentyear,"-O",sep="") ,tyear),
+         tyear     = ifelse(assessmenttype2 == "withdrawn"   , paste(assessmentyear,"-W",sep="") ,tyear),
          tyear     = ifelse(assessmenttype2 == "bench" , paste(assessmentyear,"-B",sep="") ,tyear),
-         tyear     = ifelse(assessmenttype2 == "alt" , paste(assessmentyear,"-A",sep="") ,tyear)) %>% 
+         tyear     = ifelse(assessmenttype2 == "alt"   , paste(assessmentyear,"-A",sep="") ,tyear)) %>% 
   data.frame()
 
 # filter(iAssess, assessmentyear == 2016 & grepl("mac", stockkeylabelold)) %>% View()
@@ -75,6 +77,8 @@ last <-
 p1 <-
   d %>% 
   filter(!is.na(ssb)) %>%  
+  # filter(grepl("2016", tyear)) %>% 
+  # filter(assessmenttype2 == "withdrawn") %>% 
   
   ggplot(aes(year,ssb, group=tyear)) +
   
@@ -92,10 +96,10 @@ p1 <-
   geom_dl(aes(label  = tyear, colour = assessmenttype2), 
           method = list(dl.combine("last.points"), cex = 0.8)) +
   
-  scale_colour_manual(values=c(last = "red",assess = "black",bench = "blue",old = "darkgreen", alt="gray")) +
-  scale_fill_manual  (values=c(last = "red",assess = "black",bench = "blue",old = "darkgreen", alt="gray")) +
-  scale_linetype_manual(values=c(last="solid",assess="solid",bench="dashed",old="dotdash", alt="dotted")) +
-  scale_size_manual(values=c(last= 1.5, assess = 0.8,bench  = 1.2,old = 0.8, alt=0.8)) +
+  scale_colour_manual  (values=c(last = "red",assess = "black",bench = "blue", withdrawn = "darkgreen", alt="gray")) +
+  scale_fill_manual    (values=c(last = "red",assess = "black",bench = "blue", withdrawn = "darkgreen", alt="gray")) +
+  scale_linetype_manual(values=c(last="solid",assess = "solid",bench ="dashed",withdrawn = "dotdash",   alt="dotted")) +
+  scale_size_manual    (values=c(last= 1.5,   assess = 0.8,    bench = 1.2,    withdrawn = 0.8,         alt=0.8)) +
   
   expand_limits(y = 0) +
   # xlim(2005,2020) +
@@ -125,10 +129,10 @@ p2 <-
   geom_dl(aes(label  = tyear, colour = assessmenttype2), 
           method = list(dl.combine("last.points"), cex = 0.8)) +
   
-  scale_colour_manual(values=c(last = "red",assess = "black",bench = "blue",old = "darkgreen", alt="gray")) +
-  scale_fill_manual  (values=c(last = "red",assess = "black",bench = "blue",old = "darkgreen", alt="gray")) +
-  scale_linetype_manual(values=c(last="solid",assess="solid",bench="dashed",old="dotdash", alt="dotted")) +
-  scale_size_manual(values=c(last= 1.5, assess = 0.8,bench  = 1.2,old = 0.8, alt=0.8)) +
+  scale_colour_manual(values=c(last = "red",assess = "black",bench = "blue",withdrawn = "darkgreen", alt="gray")) +
+  scale_fill_manual  (values=c(last = "red",assess = "black",bench = "blue",withdrawn = "darkgreen", alt="gray")) +
+  scale_linetype_manual(values=c(last="solid",assess="solid",bench="dashed",withdrawn="dotdash", alt="dotted")) +
+  scale_size_manual(values=c(last= 1.5, assess = 0.8,bench  = 1.2,withdrawn = 0.8, alt=0.8)) +
   
   expand_limits(y = 0) +
   # xlim(2005,2020) +
@@ -142,3 +146,5 @@ plot_grid(p1 + theme(legend.position  = "none",
           p2 + theme(axis.title       = element_blank()),
           ncol=2, align = 'h', rel_widths = c(3.5,3))
 
+
+# filter(iAssess, stockkeylabelold == "cod-iceg") %>% View()
